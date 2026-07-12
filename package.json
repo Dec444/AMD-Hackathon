@@ -1,0 +1,30 @@
+{
+  "name": "tipfork",
+  "version": "1.0.0",
+  "description": "Menu agent: snap a menu, translate dishes, generate visuals, estimate tax & tip. Powered by Fireworks AI.",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "start:backend": "node backend/server.js",
+    "check:fireworks": "node scripts/check-fireworks.js",
+    "cap:init": "cap init TipFork com.tipfork.app --web-dir www",
+    "add:ios": "cap add ios",
+    "add:android": "cap add android",
+    "sync": "cap sync",
+    "open:ios": "cap open ios",
+    "open:android": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/app": "^6.0.0",
+    "@capacitor/camera": "^6.0.0",
+    "@capacitor/core": "^6.1.0",
+    "@capacitor/geolocation": "^6.0.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.1.0",
+    "@capacitor/cli": "^6.1.0",
+    "@capacitor/ios": "^6.1.0"
+  }
+}

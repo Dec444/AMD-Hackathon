@@ -1,0 +1,12 @@
+# Secrets — never commit
+.env
+
+# Dependencies
+node_modules/
+
+# OS noise
+.DS_Store
+
+# Mobile build output
+ios/
+android/

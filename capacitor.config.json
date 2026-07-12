@@ -1,0 +1,11 @@
+{
+  "appId": "com.tipfork.app",
+  "appName": "TipFork",
+  "webDir": "www",
+  "server": { "androidScheme": "https" },
+  "ios": { "contentInset": "always" },
+  "plugins": {
+    "Camera": { "permissions": ["camera", "photos"] },
+    "Geolocation": {}
+  }
+}

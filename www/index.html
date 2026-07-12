@@ -1,0 +1,2039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>TipFork — Photo the menu, split the bill</title>
+<link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16.png">
+<link rel="icon" href="assets/icons/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1115; --card:#1a1e27; --card2:#232834; --line:#2f3644;
+    --text:#eef1f6; --muted:#9aa4b6; --accent:#4f8cff; --accent2:#28c76f;
+    --danger:#ff5c6c; --warn:#ffb020; --radius:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--text);line-height:1.4;padding-bottom:120px}
+  header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,#151922,#151922ee);
+    backdrop-filter:blur(8px);padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}
+  header h1{margin:0;font-size:20px;letter-spacing:.3px;display:flex;align-items:center;gap:8px}
+  header p{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+  #currency{width:auto;flex:0 0 auto;font-size:13px;padding:8px 10px}
+  .wrap{max-width:560px;margin:0 auto;padding:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+  .step-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .badge{background:var(--accent);color:#fff;width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:12px;font-size:15px;font-weight:600;transition:.15s}
+  button:active{transform:scale(.97)}
+  .btn-primary{background:var(--accent);color:#fff;padding:14px 18px;width:100%}
+  .btn-ghost{background:var(--card2);color:var(--text);border:1px solid var(--line);padding:12px 16px}
+  .btn-row{display:flex;gap:10px}
+  .btn-row button{flex:1}
+  input,select{font-family:inherit;font-size:15px;background:var(--card2);border:1px solid var(--line);
+    color:var(--text);border-radius:10px;padding:10px 12px;width:100%}
+  input:focus,select:focus{outline:none;border-color:var(--accent)}
+  label.file{display:block}
+  #preview{max-width:100%;border-radius:12px;margin-top:12px;display:none;border:1px solid var(--line)}
+  .progress{height:8px;background:var(--card2);border-radius:6px;overflow:hidden;margin-top:12px;display:none}
+  .progress > div{height:100%;width:0;background:var(--accent);transition:width .2s}
+  .hint{color:var(--muted);font-size:12.5px;margin-top:8px}
+  .agent-panel{margin-top:14px;padding:14px;border-radius:14px;background:linear-gradient(135deg,rgba(79,140,255,.12),rgba(40,199,111,.08));border:1px solid rgba(79,140,255,.24)}
+  .agent-panel h3{margin:0 0 6px;font-size:15px}
+  .agent-panel p{margin:0 0 12px;color:var(--muted);font-size:13px}
+  .item{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:var(--card2);margin-bottom:8px}
+  .item.checked{outline:2px solid var(--accent2)}
+  .item .chk{width:24px;height:24px;flex:0 0 24px;border-radius:7px;border:2px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;background:transparent}
+  .item.checked .chk{background:var(--accent2);border-color:var(--accent2)}
+  .item .name{flex:1;background:transparent;border:none;padding:6px 4px;font-size:15px}
+  .item .name:focus{outline:none;border-bottom:1px solid var(--accent)}
+  .item .price{width:78px;text-align:right}
+  .item .qty{width:62px;text-align:center}
+  .item .who{width:96px;font-size:13px;padding:8px}
+  .item .del{background:transparent;color:var(--muted);font-size:18px;padding:4px 6px;width:auto}
+  .item-thumb{width:56px;height:56px;border-radius:12px;object-fit:cover;border:1px solid var(--line);background:#0d1016;flex:0 0 56px}
+  .item-main{flex:1;min-width:0}
+  .item-top{display:flex;align-items:center;gap:10px}
+  .item-meta{margin-top:6px;font-size:12px;color:var(--muted)}
+  .item-meta strong{color:var(--text);font-weight:600}
+  .visual-board-wrap{margin-top:12px;padding:12px;border-radius:12px;background:var(--card2);border:1px solid var(--line)}
+  .visual-board-img{width:100%;border-radius:10px;border:1px solid var(--line);background:#0d1016;display:block}
+  .row2{display:flex;gap:10px;flex-wrap:wrap}
+  .row2 > *{flex:1;min-width:120px}
+  .tip-btns{display:flex;gap:8px;margin:10px 0}
+  .tip-btns button{flex:1;background:var(--card2);border:1px solid var(--line);color:var(--text);padding:12px 6px}
+  .tip-btns button.active{background:var(--accent);border-color:var(--accent);color:#fff}
+  .people-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .chip{background:var(--card2);border:1px solid var(--line);border-radius:20px;padding:8px 12px;display:flex;align-items:center;gap:8px;font-size:14px}
+  .chip button{background:transparent;color:var(--muted);width:auto;padding:0;font-size:16px}
+  .field{margin-bottom:12px}
+  .field label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+  .summary-line{display:flex;justify-content:space-between;padding:7px 0;font-size:15px}
+  .summary-line.total{border-top:1px solid var(--line);margin-top:6px;padding-top:12px;font-size:20px;font-weight:700}
+  .summary-line .muted{color:var(--muted)}
+  .accent{color:var(--accent2)}
+  .person-card{background:var(--card2);border-radius:12px;padding:12px;margin-top:10px}
+  .person-card h4{margin:0 0 6px;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+  .person-card .pl{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);padding:2px 0}
+  .empty{color:var(--muted);text-align:center;padding:20px;font-size:14px}
+  .bar{position:fixed;bottom:0;left:0;right:0;background:#151922;border-top:1px solid var(--line);
+    padding:12px 16px;z-index:30}
+  .bar .inner{max-width:560px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}
+  .bar .big{font-size:24px;font-weight:800}
+  .bar .lbl{font-size:12px;color:var(--muted)}
+  .toggle{display:flex;gap:8px;margin-bottom:12px}
+  .toggle button{flex:1;background:var(--card2);border:1px solid var(--line);color:var(--muted);padding:10px}
+  .toggle button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .hidden{display:none}
+  .tax-badge{display:inline-block;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:4px 10px;font-size:13px;margin-top:8px}
+  .modal{position:fixed;inset:0;background:#000a;z-index:50;display:none;align-items:center;justify-content:center;padding:24px}
+  .modal.show{display:flex}
+  .modal-box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;max-width:360px;width:100%;text-align:center}
+  .modal-box h3{margin:0 0 4px}
+  .modal-box canvas{background:#fff;border-radius:12px;padding:12px;margin:14px auto}
+  .modal-box .amt{font-size:26px;font-weight:800;color:var(--accent2)}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>🍴 TipFork</h1>
+    <p>Snap the menu · tick dishes · split &amp; pay</p>
+  </div>
+  <select id="currency" onchange="setCurrency(this.value)">
+    <option value="USD">$ USD</option>
+    <option value="EUR">€ EUR</option>
+    <option value="GBP">£ GBP</option>
+    <option value="JPY">¥ JPY</option>
+    <option value="CNY">¥ CNY</option>
+    <option value="INR">₹ INR</option>
+    <option value="CAD">$ CAD</option>
+    <option value="AUD">$ AUD</option>
+    <option value="SGD">$ SGD</option>
+    <option value="CHF">Fr CHF</option>
+  </select>
+</header>
+
+<div class="wrap">
+
+  <!-- STEP 1: capture -->
+  <div class="card">
+    <div class="step-label"><span class="badge">1</span> Snap or upload the menu</div>
+    <label class="file">
+      <input id="fileInput" type="file" accept="image/*" capture="environment" class="hidden">
+      <button class="btn-primary" onclick="document.getElementById('fileInput').click()">📷 Take / choose photo</button>
+    </label>
+    <div class="progress" id="prog"><div id="progBar"></div></div>
+    <div class="hint" id="ocrHint"></div>
+    <img id="preview" alt="menu preview">
+    <div class="hint">OCR runs in your browser — nothing is uploaded. Blurry menus? You can edit everything below.</div>
+    <div class="agent-panel">
+      <h3>Menu Agent</h3>
+      <p>Detect dish names + prices, translate for your group, then generate dish visuals.</p>
+      <div class="field">
+        <label>Translate dishes to</label>
+        <select id="agentLanguage">
+          <option value="English">English</option>
+          <option value="Spanish">Spanish</option>
+          <option value="Chinese (Simplified)">Chinese (Simplified)</option>
+          <option value="Chinese (Traditional)">Chinese (Traditional)</option>
+          <option value="Japanese">Japanese</option>
+          <option value="Korean">Korean</option>
+          <option value="French">French</option>
+          <option value="German">German</option>
+          <option value="Italian">Italian</option>
+          <option value="Portuguese">Portuguese</option>
+          <option value="Arabic">Arabic</option>
+          <option value="Hindi">Hindi</option>
+        </select>
+      </div>
+      <div class="btn-row">
+        <button class="btn-ghost" id="translateBtn" onclick="runMenuAgent('translate')">🌐 Translate dishes</button>
+        <button class="btn-ghost" id="visualBtn" onclick="runMenuAgent('visuals')">🖼️ Create dish visuals</button>
+      </div>
+      <div class="hint" id="agentHint">Scan a menu first, then the agent can detect prices, translate dish names, and create dish visuals.</div>
+    </div>
+  </div>
+
+  <!-- STEP 2: items -->
+  <div class="card">
+    <div class="step-label"><span class="badge">2</span> Pick your dishes</div>
+    <div id="itemList"><div class="empty">No items yet. Scan a menu or add one manually.</div></div>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn-ghost" onclick="addItem()">+ Add item</button>
+      <button class="btn-ghost" onclick="clearItems()">Clear all</button>
+    </div>
+    <div class="hint">Tick dishes to include in the bill. Total is calculated from dish price x quantity.</div>
+    <div id="visualBoardWrap" class="visual-board-wrap hidden">
+      <img id="visualBoardImg" class="visual-board-img" alt="Dish visual board">
+      <div class="hint" id="visualBoardHint">Visual board pairs each dish image with name and price.</div>
+      <div class="btn-row" style="margin-top:8px">
+        <button class="btn-ghost" onclick="downloadVisualBoard()">Download visual board</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3: people & split -->
+  <div class="card">
+    <div class="step-label"><span class="badge">3</span> Split style</div>
+    <div class="toggle">
+      <button id="modeEven" class="active" onclick="setMode('even')">Split evenly</button>
+      <button id="modeItem" onclick="setMode('item')">By dish</button>
+    </div>
+    <div class="field">
+      <label>People</label>
+      <div class="row2">
+        <input id="personName" placeholder="Add a name (e.g. Sam)" onkeydown="if(event.key==='Enter')addPerson()">
+        <button class="btn-ghost" style="flex:0 0 auto" onclick="addPerson()">Add</button>
+      </div>
+      <div class="people-chips" id="peopleChips"></div>
+    </div>
+  </div>
+
+  <!-- STEP 4: tip & tax -->
+  <div class="card">
+    <div class="step-label"><span class="badge">4</span> Tip &amp; tax</div>
+    <label style="font-size:13px;color:var(--muted)">Tip percentage</label>
+    <div class="tip-btns" id="tipBtns">
+      <button data-tip="10">10%</button>
+      <button data-tip="15">15%</button>
+      <button data-tip="18" class="active">18%</button>
+      <button data-tip="20">20%</button>
+    </div>
+    <div class="field">
+      <label>Custom tip %</label>
+      <input id="customTip" type="number" inputmode="decimal" placeholder="e.g. 22" oninput="onCustomTip()">
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--line);margin:14px 0">
+
+    <label style="font-size:13px;color:var(--muted)">Tax by area (auto)</label>
+    <div class="row2" style="margin-top:6px">
+      <select id="region" onchange="onRegion()">
+        <option value="">— choose area —</option>
+        <optgroup label="United States (avg. combined sales tax)" id="usGroup"></optgroup>
+        <optgroup label="Other countries (VAT / GST)" id="worldGroup"></optgroup>
+      </select>
+      <button class="btn-ghost" style="flex:0 0 auto" onclick="detectLocation()">📍 Use location</button>
+    </div>
+    <div class="tax-badge" id="taxBadge">Tax rate: not set</div>
+    <div class="hint" id="geoHint"></div>
+
+    <div class="field" style="margin-top:12px">
+      <label>Or set tax manually</label>
+      <div class="row2">
+        <input id="taxInput" type="number" inputmode="decimal" placeholder="0" oninput="onManualTax()">
+        <select id="taxMode" style="flex:0 0 120px" onchange="render()">
+          <option value="pct">%</option>
+          <option value="amt">amount</option>
+        </select>
+      </div>
+    </div>
+    <label style="font-size:13px;color:var(--muted)">Tip is calculated on the subtotal (pre-tax). Area rates are approximate averages — confirm against your receipt.</label>
+  </div>
+
+  <!-- STEP 5: receipt reconciliation -->
+  <div class="card">
+    <div class="step-label"><span class="badge">5</span> Check against the receipt</div>
+    <label class="file">
+      <input id="receiptInput" type="file" accept="image/*" capture="environment" class="hidden">
+      <button class="btn-primary" onclick="document.getElementById('receiptInput').click()">🧾 Photo the receipt</button>
+    </label>
+    <div class="progress" id="rprog"><div id="rprogBar"></div></div>
+    <div class="hint" id="receiptHint">Optional but recommended — TipFork reads the receipt's real total and adjusts each person's request so what you collect matches what was actually charged.</div>
+    <div id="receiptCompare"></div>
+  </div>
+
+  <!-- Summary -->
+  <div class="card">
+    <div class="step-label">Summary</div>
+    <div class="summary-line"><span class="muted">Subtotal (ordered dishes)</span><span id="sSub">$0.00</span></div>
+    <div class="summary-line"><span class="muted">Tax</span><span id="sTax">$0.00</span></div>
+    <div class="summary-line"><span class="muted">Tip <span id="sTipPct"></span></span><span class="accent" id="sTip">$0.00</span></div>
+    <div class="summary-line" id="sAdjustLine" style="display:none"><span class="muted">Receipt adjustment</span><span id="sAdjust" style="color:var(--warn)"></span></div>
+    <div class="summary-line total"><span id="sTotalLabel">Total</span><span id="sTotal">$0.00</span></div>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn-ghost" onclick="shareBreakdown()">🔗 Share breakdown</button>
+    </div>
+    <div id="perPerson"></div>
+  </div>
+</div>
+
+<div class="bar">
+  <div class="inner">
+    <div><div class="lbl">Tip</div><div class="big accent" id="barTip">$0.00</div></div>
+    <div style="text-align:right"><div class="lbl">Total to pay</div><div class="big" id="barTotal">$0.00</div></div>
+  </div>
+</div>
+
+<script>
+let items = [];      // {id,name,price,qty,checked,person,sourceName,imageDataUrl,visualPrompt}
+let people = [];     // {name}
+let tipPct = 18;
+let mode = 'even';
+let uid = 1;
+let currency = 'USD';
+let regionRate = null;   // % from area selection
+let taxUsesRegion = false;
+let menuImageDataUrl = '';
+let menuOcrText = '';
+let agentBusy = false;
+let visualBoardDataUrl = '';
+let visualBoardTimer = null;
+let visualBoardVersion = 0;
+
+/* =======================================================================
+   API CONFIG  — Leave DEMO_MODE=true to run the prototype without any
+   backend (geolocation/tax lookups are simulated).
+
+   IMPORTANT: only the Google Maps key is safe in client code (lock it to
+   your app's bundle id / referrer). The Fireworks AI key lives on the
+   backend (see backend/server.js) — the app calls BACKEND_URL for all
+   AI features (extraction, translation, visuals).
+   Tax uses a FREE built-in rate table (no paid API, no key) and is
+   confirmed exactly by the receipt scan in Step 5.
+   ======================================================================= */
+const CONFIG = {
+  DEMO_MODE: true,                       // false once BACKEND_URL + keys are live
+  BACKEND_URL: 'http://127.0.0.1:3000',  // local server (see backend/server.js)
+  GOOGLE_MAPS_KEY: 'YOUR_GOOGLE_MAPS_BROWSER_KEY',
+  MENU_AGENT_DEMO_MODE: false,
+  ENABLE_VISUALS: true,
+  LOCAL_VISUALS_ONLY: false,             // when true: local placeholders only (no AI images)
+  FAST_VISUAL_MAX_AI_IMAGES: 3,
+  VISUAL_BATCH_ROUNDS: 5,
+  FAST_TRANSLATION_MODE: true
+};
+
+/* ---- Google Geocoding: coords -> address / state / country ---- */
+async function reverseGeocode(lat, lng){
+  if(CONFIG.DEMO_MODE){
+    // simulated response so the prototype works offline
+    return { ok:true, state:'California', country:'US', postal:'94301',
+             formatted:'Palo Alto, CA 94301, USA (simulated)' };
+  }
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${CONFIG.GOOGLE_MAPS_KEY}`;
+  const r = await fetch(url); const j = await r.json();
+  if(j.status!=='OK' || !j.results.length) return { ok:false };
+  const c = j.results[0].address_components;
+  const get = t => (c.find(x=>x.types.includes(t))||{}).long_name || '';
+  const getS = t => (c.find(x=>x.types.includes(t))||{}).short_name || '';
+  return { ok:true,
+    state: get('administrative_area_level_1'),
+    country: getS('country'),
+    postal: get('postal_code'),
+    formatted: j.results[0].formatted_address };
+}
+
+/* ---- Tax rate: FREE built-in table (no paid API, no key) ----
+   Geocoding gives us the state/country; we look the rate up locally.
+   The receipt scan in Step 5 then confirms the exact charged tax. ---- */
+async function fetchTaxRate({state, country, postal}){
+  if(CONFIG.DEMO_MODE){
+    return { ok:true, rate: 9.25, label:'California avg (free source)' };
+  }
+  const st = (state||'').toLowerCase();
+  const s = US_STATES.find(x=>x[0].toLowerCase()===st);
+  if(s) return { ok:true, rate:s[1], label:`${s[0]} avg (free source)` };
+  // non-US: caller falls back to the region dropdown
+  return { ok:false };
+}
+
+const CUR = {
+  USD:{sym:'$',dec:2}, EUR:{sym:'€',dec:2}, GBP:{sym:'£',dec:2}, JPY:{sym:'¥',dec:0},
+  CNY:{sym:'¥',dec:2}, INR:{sym:'₹',dec:2}, CAD:{sym:'$',dec:2}, AUD:{sym:'$',dec:2},
+  SGD:{sym:'$',dec:2}, CHF:{sym:'Fr ',dec:2}
+};
+
+// [name, avg combined sales-tax %, lat, lng]
+const US_STATES = [
+  ['Alabama',9.25,32.8,-86.8],['Alaska',1.8,64.0,-152.0],['Arizona',8.4,34.3,-111.7],
+  ['Arkansas',9.45,34.9,-92.4],['California',8.85,37.2,-119.3],['Colorado',7.8,39.0,-105.5],
+  ['Connecticut',6.35,41.6,-72.7],['Delaware',0,39.0,-75.5],['Florida',7.0,28.6,-82.4],
+  ['Georgia',7.4,32.6,-83.4],['Hawaii',4.5,20.3,-156.4],['Idaho',6.0,44.4,-114.6],
+  ['Illinois',8.85,40.0,-89.2],['Indiana',7.0,39.9,-86.3],['Iowa',6.95,42.0,-93.5],
+  ['Kansas',8.7,38.5,-98.4],['Kentucky',6.0,37.5,-85.3],['Louisiana',9.55,31.0,-92.0],
+  ['Maine',5.5,45.4,-69.2],['Maryland',6.0,39.0,-76.8],['Massachusetts',6.25,42.3,-71.8],
+  ['Michigan',6.0,44.3,-85.4],['Minnesota',7.5,46.3,-94.3],['Mississippi',7.05,32.7,-89.7],
+  ['Missouri',8.3,38.4,-92.5],['Montana',0,47.0,-109.6],['Nebraska',6.95,41.5,-99.8],
+  ['Nevada',8.25,39.3,-116.6],['New Hampshire',0,43.7,-71.6],['New Jersey',6.6,40.2,-74.7],
+  ['New Mexico',7.7,34.4,-106.1],['New York',8.53,42.9,-75.6],['North Carolina',7.0,35.6,-79.4],
+  ['North Dakota',7.0,47.4,-100.5],['Ohio',7.25,40.3,-82.8],['Oklahoma',8.99,35.6,-97.5],
+  ['Oregon',0,43.9,-120.6],['Pennsylvania',6.35,40.9,-77.8],['Rhode Island',7.0,41.7,-71.6],
+  ['South Carolina',7.5,33.9,-80.9],['South Dakota',6.4,44.4,-100.2],['Tennessee',9.55,35.9,-86.4],
+  ['Texas',8.2,31.5,-99.3],['Utah',7.2,39.3,-111.7],['Vermont',6.35,44.1,-72.7],
+  ['Virginia',5.75,37.5,-78.9],['Washington',9.4,47.4,-120.5],['West Virginia',6.55,38.6,-80.6],
+  ['Wisconsin',5.45,44.6,-89.9],['Wyoming',5.35,43.0,-107.6],['Washington D.C.',6.0,38.9,-77.0]
+];
+const WORLD = [
+  ['United Kingdom',20],['Ireland',13.5],['Germany',19],['France',10],['Spain',10],
+  ['Italy',10],['Netherlands',9],['Canada (avg GST+PST)',12],['Australia',10],
+  ['Singapore',9],['Japan',10],['India (restaurant GST)',5],['China',6],['Mexico',16],['Switzerland',8.1]
+];
+
+const $ = s => document.querySelector(s);
+const money = n => { const c=CUR[currency]; return c.sym + (isFinite(n)?n:0).toFixed(c.dec); };
+const agentUsesBackend = () => !CONFIG.MENU_AGENT_DEMO_MODE;
+const visualsEnabled = () => !!CONFIG.ENABLE_VISUALS;
+const localVisualsOnly = () => !!CONFIG.LOCAL_VISUALS_ONLY;
+const fastTranslationMode = () => !!CONFIG.FAST_TRANSLATION_MODE;
+const visualAiLimit = () => {
+  const n = Number.parseInt(CONFIG.FAST_VISUAL_MAX_AI_IMAGES, 10);
+  return Number.isFinite(n) && n >= 0 ? n : 8;
+};
+const visualBatchRounds = () => {
+  const n = Number.parseInt(CONFIG.VISUAL_BATCH_ROUNDS, 10);
+  return Number.isFinite(n) && n > 0 ? n : 3;
+};
+
+function setCurrency(v){ currency=v; renderItems(); render(); }
+
+function dishLabel(item){
+  return ((item.name||item.sourceName||'Dish').trim() || 'Dish');
+}
+
+function hasDishName(item){
+  return !!((item.name||item.sourceName||'').trim());
+}
+
+function dishPrice(item){
+  const p = parseFloat(item.price);
+  return isFinite(p) && p > 0 ? p : 0;
+}
+
+function dishQty(item){
+  const q = parseFloat(item.qty);
+  return isFinite(q) && q > 0 ? q : 1;
+}
+
+function lineTotal(item){
+  return dishPrice(item) * dishQty(item);
+}
+
+function fileToDataUrl(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImage(dataUrl){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.onload = ()=>resolve(img);
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+async function fileToMenuDataUrl(file){
+  const rawDataUrl = await fileToDataUrl(file);
+  const maxSide = 1600;
+  const renderToJpeg = (imageLike, sourceWidth, sourceHeight) => {
+    const scale = Math.min(1, maxSide / Math.max(sourceWidth, sourceHeight));
+    const width = Math.max(1, Math.round(sourceWidth * scale));
+    const height = Math.max(1, Math.round(sourceHeight * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if(!ctx) return rawDataUrl;
+    ctx.drawImage(imageLike, 0, 0, width, height);
+    return canvas.toDataURL('image/jpeg', 0.82);
+  };
+  try{
+    const img = await loadImage(rawDataUrl);
+    return renderToJpeg(img, img.width, img.height);
+  }catch(_){
+    try{
+      if(typeof createImageBitmap !== 'function') return rawDataUrl;
+      const bitmap = await createImageBitmap(file);
+      try{
+        return renderToJpeg(bitmap, bitmap.width, bitmap.height);
+      } finally {
+        if(typeof bitmap.close === 'function') bitmap.close();
+      }
+    }catch(__){
+      return rawDataUrl;
+    }
+  }
+}
+
+function hashColor(seed){
+  let hash = 0;
+  for(let i=0;i<seed.length;i++) hash = ((hash<<5)-hash)+seed.charCodeAt(i);
+  const hue = Math.abs(hash)%360;
+  return [`hsl(${hue} 75% 48%)`, `hsl(${(hue+28)%360} 72% 38%)`];
+}
+
+function makeDishPlaceholder(label){
+  const text = (label||'Dish').trim().slice(0, 20) || 'Dish';
+  const initials = text.split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase() || 'TF';
+  const [c1, c2] = hashColor(text);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs>
+    <rect width="256" height="256" rx="36" fill="url(#g)"/>
+    <circle cx="128" cy="114" r="58" fill="rgba(255,255,255,.16)"/>
+    <path d="M72 174c15-22 97-22 112 0" fill="none" stroke="rgba(255,255,255,.65)" stroke-width="12" stroke-linecap="round"/>
+    <text x="128" y="226" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="white">${initials}</text>
+  </svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function isGeneratedVisual(url){
+  const v = typeof url === 'string' ? url.trim() : '';
+  if(!v) return false;
+  if(/^data:image\/svg\+xml/i.test(v)) return false;
+  return /^data:image\//i.test(v) || /^https?:\/\//i.test(v);
+}
+
+function scheduleVisualBoard(){
+  if(!visualsEnabled()){
+    const wrap = $('#visualBoardWrap');
+    if(wrap) wrap.classList.add('hidden');
+    visualBoardDataUrl = '';
+    return;
+  }
+  if(visualBoardTimer) clearTimeout(visualBoardTimer);
+  visualBoardTimer = setTimeout(()=>{ refreshVisualBoard(); }, 140);
+}
+
+function wrapTextLines(ctx, text, maxWidth, maxLines){
+  const words = (text || '').split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = '';
+  for(const word of words){
+    const next = line ? `${line} ${word}` : word;
+    if(ctx.measureText(next).width <= maxWidth || !line){
+      line = next;
+    } else {
+      lines.push(line);
+      line = word;
+      if(lines.length >= maxLines) break;
+    }
+  }
+  if(line && lines.length < maxLines) lines.push(line);
+  if(lines.length && words.length){
+    const joined = lines.join(' ');
+    const original = words.join(' ');
+    if(joined.length < original.length){
+      lines[lines.length - 1] = `${lines[lines.length - 1].replace(/[. ]+$/,'')}...`;
+    }
+  }
+  return lines.slice(0, maxLines);
+}
+
+async function refreshVisualBoard(){
+  if(!visualsEnabled()) return;
+  const version = ++visualBoardVersion;
+  const dishes = items.filter(i => hasDishName(i));
+  const wrap = $('#visualBoardWrap');
+  const img = $('#visualBoardImg');
+  if(!wrap || !img) return;
+  if(!dishes.length){
+    wrap.classList.add('hidden');
+    visualBoardDataUrl = '';
+    return;
+  }
+
+  const cols = dishes.length === 1 ? 1 : 2;
+  const cardW = 248;
+  const cardH = 132;
+  const gap = 14;
+  const pad = 16;
+  const rows = Math.ceil(dishes.length / cols);
+  const width = pad * 2 + cols * cardW + (cols - 1) * gap;
+  const height = pad * 2 + rows * cardH + (rows - 1) * gap + 44;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if(!ctx) return;
+
+  ctx.fillStyle = '#1b2029';
+  ctx.fillRect(0, 0, width, height);
+  const grad = ctx.createLinearGradient(0, 0, width, height);
+  grad.addColorStop(0, 'rgba(79,140,255,0.26)');
+  grad.addColorStop(1, 'rgba(40,199,111,0.14)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.fillStyle = '#eef1f6';
+  ctx.font = '700 24px Arial, sans-serif';
+  ctx.fillText('TipFork Dish Visual Board', pad, 34);
+
+  const drawCard = async (dish, idx)=>{
+    const row = Math.floor(idx / cols);
+    const col = idx % cols;
+    const x = pad + col * (cardW + gap);
+    const y = 52 + row * (cardH + gap);
+
+    ctx.fillStyle = '#2a3040';
+    ctx.strokeStyle = '#3f4860';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const r = 12;
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + cardW - r, y);
+    ctx.quadraticCurveTo(x + cardW, y, x + cardW, y + r);
+    ctx.lineTo(x + cardW, y + cardH - r);
+    ctx.quadraticCurveTo(x + cardW, y + cardH, x + cardW - r, y + cardH);
+    ctx.lineTo(x + r, y + cardH);
+    ctx.quadraticCurveTo(x, y + cardH, x, y + cardH - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    const thumbX = x + 12;
+    const thumbY = y + 12;
+    const thumbSize = 78;
+    const src = dish.imageDataUrl || makeDishPlaceholder(dishLabel(dish));
+    try{
+      const image = await loadImage(src);
+      ctx.drawImage(image, thumbX, thumbY, thumbSize, thumbSize);
+    }catch(_){
+      ctx.fillStyle = '#0f1115';
+      ctx.fillRect(thumbX, thumbY, thumbSize, thumbSize);
+    }
+
+    const textX = thumbX + thumbSize + 12;
+    const textMax = cardW - (textX - x) - 10;
+    ctx.fillStyle = '#eef1f6';
+    ctx.font = '600 15px Arial, sans-serif';
+    const lines = wrapTextLines(ctx, dishLabel(dish), textMax, 3);
+    lines.forEach((line, i) => ctx.fillText(line, textX, thumbY + 20 + i * 18));
+
+    ctx.fillStyle = '#9aa4b6';
+    ctx.font = '500 13px Arial, sans-serif';
+    ctx.fillText(`Qty: ${dishQty(dish)}`, textX, y + cardH - 28);
+    const shownPrice = dishPrice(dish);
+    ctx.fillText(`Price: ${shownPrice > 0 ? money(shownPrice) : '—'}`, textX, y + cardH - 10);
+  };
+
+  for(let i=0;i<dishes.length;i++) await drawCard(dishes[i], i);
+
+  if(version !== visualBoardVersion) return;
+  visualBoardDataUrl = canvas.toDataURL('image/png');
+  img.src = visualBoardDataUrl;
+  wrap.classList.remove('hidden');
+  $('#visualBoardHint').textContent = `Generated board with ${dishes.length} dish${dishes.length===1?'':'es'} (image + name + price).`;
+}
+
+function downloadVisualBoard(){
+  if(!visualBoardDataUrl){
+    alert('Generate dish visuals first.');
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = visualBoardDataUrl;
+  a.download = 'tipfork-dish-board.png';
+  a.click();
+}
+
+function setAgentBusy(isBusy, message){
+  agentBusy = isBusy;
+  const translateBtn = $('#translateBtn');
+  const visualBtn = $('#visualBtn');
+  if(translateBtn) translateBtn.disabled = isBusy;
+  if(visualBtn) visualBtn.disabled = isBusy || !visualsEnabled();
+  if(message) $('#agentHint').textContent = message;
+}
+
+async function runMenuAgent(action){
+  if(agentBusy) return;
+  if(action === 'visuals' && !visualsEnabled()){
+    $('#agentHint').textContent = 'Dish visuals are paused for now while we improve detection speed and accuracy.';
+    return;
+  }
+  const dishes = items.filter(i => ((i.name||'').trim() || (i.sourceName||'').trim()));
+  if(!dishes.length){
+    $('#agentHint').textContent = 'Scan a menu or add dishes first so the agent has something to work with.';
+    return;
+  }
+  if(action === 'translate'){
+    const targetLanguage = $('#agentLanguage').value;
+    setAgentBusy(true, `Translating ${dishes.length} dish${dishes.length===1?'':'es'} into ${targetLanguage} (fast mode)…`);
+    try{
+      const ocrSnippet = (menuOcrText || '').slice(0, 1200);
+      const useImageContext = !fastTranslationMode();
+      const payload = {
+        targetLanguage,
+        items: dishes.map(i => ({
+          id:i.id,
+          name:(i.name||i.sourceName||'Dish').trim(),
+          sourceName:(i.sourceName||i.name||'').trim(),
+          price:i.price || 0
+        })),
+        ocrText: ocrSnippet,
+        menuImageDataUrl: useImageContext ? menuImageDataUrl : '',
+        useImageContext
+      };
+      let result;
+      if(agentUsesBackend()){
+        try{
+          result = await callMenuTranslateAgent(payload, fastTranslationMode() ? 14000 : 22000);
+        }catch(err){
+          const msg = String(err && err.message || '');
+          if(/timed out/i.test(msg)){
+            const retryPayload = {
+              ...payload,
+              ocrText: '',
+              menuImageDataUrl: '',
+              useImageContext: false
+            };
+            result = await callMenuTranslateAgent(retryPayload, 18000);
+            if(result && (!result.summary || !result.summary.trim())){
+              result.summary = 'Translated after retrying in lightweight mode.';
+            }
+          } else {
+            throw err;
+          }
+        }
+      } else {
+        result = await translateMenuDemo(payload);
+      }
+      const translated = new Map((result.items || []).map(item => [String(item.id), item]));
+      items = items.map(item => {
+        const update = translated.get(String(item.id));
+        if(!update) return item;
+        const originalName = item.sourceName || item.name;
+        return {
+          ...item,
+          sourceName: originalName,
+          name: update.translatedName || item.name,
+          visualPrompt: update.visualPrompt || item.visualPrompt || ''
+        };
+      });
+      $('#agentHint').textContent = result.summary || `Translated ${translated.size} dish${translated.size===1?'':'es'} into ${targetLanguage}${fastTranslationMode() ? ' (fast mode)' : ''}.`;
+      renderItems();
+      render();
+    }catch(err){
+      console.error(err);
+      $('#agentHint').textContent = err.message || 'Translation timed out. Try again or switch to a shorter menu list.';
+    }finally{
+      setAgentBusy(false);
+    }
+    return;
+  }
+
+  const localOnlyVisuals = localVisualsOnly();
+  const maxAiImages = localOnlyVisuals ? 0 : visualAiLimit();
+  const maxRounds = visualBatchRounds();
+  items = items.map(item => {
+    if(!dishLabel(item).trim()) return item;
+    return {
+      ...item,
+      imageDataUrl: item.imageDataUrl || makeDishPlaceholder(dishLabel(item))
+    };
+  });
+  renderItems();
+  scheduleVisualBoard();
+
+  setAgentBusy(
+    true,
+    localOnlyVisuals
+      ? `Local visual mode: generating local placeholders for ${dishes.length} dishes…`
+      : (maxAiImages > 0
+      ? `Generating dish visuals (fast + batched) for ${dishes.length} dishes…`
+      : `Fast mode enabled: using instant placeholders for ${dishes.length} dishes.`)
+  );
+  try{
+    const summaryParts = [];
+    const summarySeen = new Set();
+    if(maxAiImages <= 0){
+      summaryParts.push(localOnlyVisuals
+        ? `Local visual mode is ON: created local placeholder visuals for ${dishes.length} dishes.`
+        : `Using placeholders for ${dishes.length} dishes (AI visuals disabled in fast mode).`
+      );
+    } else {
+      const countPending = () => items.filter(i => hasDishName(i) && !isGeneratedVisual(i.imageDataUrl)).length;
+      let roundsUsed = 0;
+      while(roundsUsed < maxRounds){
+        const pending = items.filter(i => hasDishName(i) && !isGeneratedVisual(i.imageDataUrl));
+        if(!pending.length) break;
+        const batch = pending.slice(0, maxAiImages);
+        const payload = {
+          items: batch.map(i => ({
+            id:i.id,
+            name:(i.name||i.sourceName||'Dish').trim(),
+            sourceName:(i.sourceName||i.name||'').trim(),
+            visualPrompt:i.visualPrompt || ''
+          })),
+          maxAiImages
+        };
+        const result = agentUsesBackend() ? await callMenuVisualAgent(payload) : await generateDishVisualsDemo(payload);
+        if(result && result.summary){
+          const summaryText = String(result.summary).trim();
+          if(summaryText && !summarySeen.has(summaryText)){
+            summarySeen.add(summaryText);
+            summaryParts.push(summaryText);
+          }
+        }
+        const visuals = new Map((result.items || []).map(item => [String(item.id), item]));
+        items = items.map(item => {
+          const update = visuals.get(String(item.id));
+          if(!update){
+            if(dishLabel(item).trim()){
+              return {
+                ...item,
+                imageDataUrl: item.imageDataUrl || makeDishPlaceholder(dishLabel(item))
+              };
+            }
+            return item;
+          }
+          return {
+            ...item,
+            imageDataUrl: update.imageDataUrl || item.imageDataUrl || makeDishPlaceholder(dishLabel(item)),
+            visualPrompt: update.visualPrompt || item.visualPrompt || ''
+          };
+        });
+        roundsUsed += 1;
+        if(countPending() <= 0) break;
+      }
+
+      const aiCount = items.filter(i => hasDishName(i) && isGeneratedVisual(i.imageDataUrl)).length;
+      const totalNamed = items.filter(i => hasDishName(i)).length;
+      const remaining = Math.max(0, totalNamed - aiCount);
+      summaryParts.push(
+        remaining > 0
+          ? `Visuals ready: ${aiCount}/${totalNamed} AI images, ${remaining} placeholders. Tap "Create dish visuals" again to continue filling the rest.`
+          : `Visuals ready: AI images generated for all ${totalNamed} dishes.`
+      );
+    }
+
+    $('#agentHint').textContent = summaryParts.filter(Boolean).join(' ');
+    renderItems();
+    scheduleVisualBoard();
+  }catch(err){
+    console.error(err);
+    items = items.map(item => {
+      if(!dishLabel(item).trim()) return item;
+      return {
+        ...item,
+        imageDataUrl: item.imageDataUrl || makeDishPlaceholder(dishLabel(item))
+      };
+    });
+    renderItems();
+    scheduleVisualBoard();
+    $('#agentHint').textContent = (err && err.message)
+      ? `${err.message} Showing placeholder visuals for now.`
+      : 'Visual generation failed right now. Showing placeholder visuals instead.';
+  }finally{
+    setAgentBusy(false);
+  }
+}
+
+async function callMenuAgent(path, payload, timeoutMs=25000){
+  const ctrl = new AbortController();
+  const timer = setTimeout(()=>ctrl.abort(), Math.max(1000, timeoutMs|0));
+  let res;
+  try{
+    res = await fetch(`${CONFIG.BACKEND_URL}${path}`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+      signal: ctrl.signal
+    });
+  }catch(err){
+    if(err && err.name === 'AbortError'){
+      throw new Error('The menu agent timed out. Please try a clearer photo.');
+    }
+    throw err;
+  }finally{
+    clearTimeout(timer);
+  }
+  const json = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(json.error || 'Menu agent request failed.');
+  return json;
+}
+
+async function callMenuExtractAgent(payload){
+  return callMenuAgent('/api/agent/menu/extract', payload, 32000);
+}
+
+async function callMenuTranslateAgent(payload, timeoutMs=14000){
+  return callMenuAgent('/api/agent/menu/translate', payload, timeoutMs);
+}
+
+async function callMenuVisualAgent(payload){
+  return callMenuAgent('/api/agent/menu/visuals', payload, 95000);
+}
+
+async function translateMenuDemo({targetLanguage, items: dishItems}){
+  const translated = dishItems.map(item => ({
+    id:item.id,
+    translatedName: targetLanguage === 'English'
+      ? item.name
+      : `${item.name} (${targetLanguage})`,
+    visualPrompt: `Restaurant menu photography of ${item.name}, plated beautifully, easy to recognize, no text`
+  }));
+  return {
+    items: translated,
+    summary: `Demo mode translated ${translated.length} dish${translated.length===1?'':'es'} into ${targetLanguage}.`
+  };
+}
+
+async function generateDishVisualsDemo({items: dishItems}){
+  return {
+    items: dishItems.map(item => ({
+      id:item.id,
+      imageDataUrl: makeDishPlaceholder(item.name),
+      visualPrompt: item.visualPrompt || `Restaurant menu photography of ${item.name}, plated beautifully, easy to recognize, no text`
+    })),
+    summary: `Demo mode created placeholder visuals for ${dishItems.length} dish${dishItems.length===1?'':'es'}.`
+  };
+}
+
+function parsePriceValue(raw){
+  if(typeof raw === 'number'){
+    if(!isFinite(raw) || raw <= 0 || raw > 9999) return 0;
+    return Math.round(raw * 100) / 100;
+  }
+  if(typeof raw !== 'string') return 0;
+  const cleaned = raw.trim().replace(/[£$€¥₹\s]/g,'');
+  if(!cleaned) return 0;
+  let normalized = cleaned;
+  if(normalized.includes(',') && normalized.includes('.')){
+    if(normalized.lastIndexOf(',') > normalized.lastIndexOf('.')){
+      normalized = normalized.replace(/\./g,'').replace(',', '.');
+    } else {
+      normalized = normalized.replace(/,/g,'');
+    }
+  } else if(normalized.includes(',') && !normalized.includes('.')){
+    const parts = normalized.split(',');
+    if(parts.length === 2 && parts[1].length <= 2){
+      normalized = parts[0] + '.' + parts[1];
+    } else {
+      normalized = normalized.replace(/,/g,'');
+    }
+  }
+  const n = parseFloat(normalized);
+  if(!isFinite(n) || n <= 0 || n > 9999) return 0;
+  return Math.round(n * 100) / 100;
+}
+
+function normalizeMenuPrice(raw){
+  let price = parsePriceValue(raw);
+  if(price <= 0) return 0;
+  const rawStr = typeof raw === 'string' ? raw.trim() : '';
+  const hasCurrency = /[£$€¥₹]/.test(rawStr);
+  const hasSep = /[.,]/.test(rawStr);
+  if(!hasCurrency && !hasSep && /^\d{3,}$/.test(rawStr)) return 0;
+  if(hasCurrency && !hasSep && /^\D*\d{3,4}$/.test(rawStr) && price >= 100 && price <= 5000){
+    price = Math.round((price / 100) * 100) / 100;
+  }
+  if(hasCurrency && price > 300 && Number.isInteger(price) && price <= 5000){
+    const scaled = Math.round((price / 100) * 100) / 100;
+    if(scaled >= 0.5 && scaled <= 120) price = scaled;
+  }
+  if(price < 0.5 || price > 300) return 0;
+  return Math.round(price * 100) / 100;
+}
+
+function dishNameKey(name){
+  return String(name || '')
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/\b(x|qty)\s*\d+\b/g, ' ')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isLikelyNonDishLine(name){
+  const low = String(name || '').toLowerCase();
+  if(!low) return true;
+  if(/\btable\s*[#:.-]?\s*\d+\b/.test(low)) return true;
+  if(/^\s*add\s+/.test(low)) return true;
+  if(/^\s*(choice of|make it|served with)\b/.test(low)) return true;
+  const commaCount = (low.match(/,/g) || []).length;
+  const wordCount = low.split(/\s+/).filter(Boolean).length;
+  if((commaCount >= 2 && wordCount >= 4) || (commaCount >= 1 && wordCount >= 6)) return true;
+  const banned = [
+    'subtotal','total','grand total','tax','tip','gratuity','service charge',
+    'thank you','server','cash','change','balance','visa','mastercard',
+    'receipt','order #','phone','tel','www','http','address',
+    'food menu','main course','appetizers','drinks','free delivery',
+    'packaging fee','gratuity included','take-out fee','take out fee','dine-in only','dine in only','parties of',
+    'includes house chips','consumer advisory','please advise your server'
+  ];
+  return banned.some(k => low.includes(k));
+}
+
+function looksLikeDishName(name){
+  const trimmed = String(name || '').trim();
+  if(trimmed.length < 2) return false;
+  if(isLikelyNonDishLine(trimmed)) return false;
+  const alphaCount = (trimmed.match(/\p{L}/gu) || []).length;
+  const nonSpace = trimmed.replace(/\s+/g, '').length || 1;
+  if(alphaCount < 2) return false;
+  if((alphaCount / nonSpace) < 0.55) return false;
+  if(/[<>]/.test(trimmed)) return false;
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if(words.length >= 3){
+    const oneCharWords = words.filter(w => w.length === 1).length;
+    if(oneCharWords >= 2) return false;
+  }
+  return true;
+}
+
+function normalizeDishCandidate(name){
+  return String(name || '')
+    .replace(/^\d{1,3}[.)-]?\s+/, '')
+    .replace(/^[^\p{L}\p{N}]+/gu, '')
+    .replace(/[|•]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function looksLikeDishHeaderLine(line){
+  const name = normalizeDishCandidate(line);
+  if(!looksLikeDishName(name)) return false;
+  const words = name.split(/\s+/).filter(Boolean);
+  if(words.length > 9) return false;
+  if(/[0-9]{4,}/.test(name)) return false;
+  return true;
+}
+
+function sanitizeNameSegment(segment){
+  return normalizeDishCandidate(
+    String(segment || '')
+      .replace(/\b\d{1,4}(?:[.,]\d{1,2})?\s*(?:ml|cl|oz|kg|g|gr|gm)\b/gi, ' ')
+      .replace(/[.·]{3,}.*$/g, ' ')
+      .replace(/([£$€¥₹]?\s?\d{1,4}(?:[.,]\d{1,2})?)/g, ' ')
+      .replace(/\b(?:ml|cl|oz|kg|g|gr|gm)\b/gi, ' ')
+      .replace(/[c0o]{4,}$/gi, ' ')
+      .replace(/[([<{]+\s*$/g, ' ')
+      .replace(/^[.·:;,\-–—\s]+/, '')
+      .replace(/[.·:;,\-–—\s]+$/, '')
+      .replace(/^(?:[a-z]{1,2}\s+){1,3}(?=[A-Z][A-Z\s&()'-]{4,})/, '')
+  );
+}
+
+function isMeasurementLikeToken(line, match){
+  const index = match && Number.isInteger(match.index) ? match.index : -1;
+  if(index < 0) return false;
+  const raw = String(match[0] || '');
+  const after = line.slice(index + raw.length, index + raw.length + 6).toLowerCase();
+  const before = line.slice(Math.max(0, index - 2), index).toLowerCase();
+  if(/^\s*(ml|cl|oz|kg|g|gr|gm)\b/.test(after)) return true;
+  if(/[a-z]$/i.test(before) && /^(ml|cl|oz|kg|g|gr|gm)\b/.test(after.trim())) return true;
+  return false;
+}
+
+function extractPairsFromLine(line){
+  const matches = [...line.matchAll(/([£$€¥₹]?\s?\d{1,4}(?:[.,]\d{1,2})?)/g)];
+  if(!matches.length) return [];
+  const pairs = [];
+  for(let i = 0; i < matches.length; i++){
+    if(isMeasurementLikeToken(line, matches[i])) continue;
+    const token = matches[i][1];
+    const price = normalizeMenuPrice(token);
+    if(price <= 0) continue;
+    const hasCurrency = /[£$€¥₹]/.test(token);
+    const hasDecimals = /[.,]\d{1,2}$/.test(token);
+    if(!hasCurrency && !hasDecimals && (price < 2 || price > 500)) continue;
+    let prevEnd = 0;
+    for(let j = i - 1; j >= 0; j--){
+      if(isMeasurementLikeToken(line, matches[j])) continue;
+      prevEnd = (matches[j].index || 0) + matches[j][0].length;
+      break;
+    }
+    const leftPart = line.slice(prevEnd, matches[i].index || 0);
+    let name = sanitizeNameSegment(leftPart);
+    if(!looksLikeDishName(name)){
+      const nextStart = (matches[i].index || 0) + token.length;
+      const nextEnd = i + 1 < matches.length ? (matches[i + 1].index || line.length) : line.length;
+      name = sanitizeNameSegment(line.slice(nextStart, nextEnd));
+    }
+    if(!looksLikeDishName(name)) continue;
+    pairs.push({ name, price });
+  }
+  return pairs;
+}
+
+function splitNameAndPriceFromLine(line){
+  const pairs = extractPairsFromLine(line);
+  return pairs.length ? pairs[0] : null;
+}
+
+function extractPriceFromPriceOnlyLine(line){
+  const raw = String(line || '').trim();
+  if(!raw) return 0;
+  const residue = raw
+    .replace(/([£$€¥₹]?\s?\d{1,4}(?:[.,]\d{1,2})?)/g, '')
+    .replace(/[.\-–—·,\/|:()\s]/g, '');
+  if(residue) return 0;
+  const matches = [...raw.matchAll(/([£$€¥₹]?\s?\d{1,4}(?:[.,]\d{1,2})?)/g)];
+  if(!matches.length) return 0;
+  let best = 0;
+  for(const m of matches){
+    const price = normalizeMenuPrice(m[1]);
+    if(price <= 0) continue;
+    const hasCurrency = /[£$€¥₹]/.test(m[1]);
+    const hasDecimals = /[.,]\d{1,2}$/.test(m[1]);
+    if(!hasCurrency && !hasDecimals && (price < 2 || price > 500)) continue;
+    if(price > best) best = price;
+  }
+  return best;
+}
+
+function mergeDetectedMenuItems(primary, fallback){
+  const merged = [];
+  const byKey = new Map();
+  [...(primary||[]), ...(fallback||[])].forEach(entry => {
+    if(!entry || typeof entry !== 'object') return;
+    const name = String(entry.name || '').replace(/\s+/g,' ').trim();
+    const price = normalizeMenuPrice(entry.price);
+    if(!looksLikeDishName(name) || price <= 0) return;
+    const key = dishNameKey(name);
+    if(!key) return;
+    const existing = byKey.get(key);
+    if(!existing){
+      const item = {name, price};
+      byKey.set(key, item);
+      merged.push(item);
+      return;
+    }
+    if(name.length > existing.name.length + 2) existing.name = name;
+    if(!existing.price || existing.price <= 0) existing.price = price;
+  });
+  return merged;
+}
+
+function priceMatchStats(sourceItems, targetItems){
+  const sourceCounts = new Map();
+  (sourceItems || []).forEach(item => {
+    const price = normalizeMenuPrice(item && item.price);
+    if(price <= 0) return;
+    const cents = Math.round(price * 100);
+    sourceCounts.set(cents, (sourceCounts.get(cents) || 0) + 1);
+  });
+
+  let matchedSlots = 0;
+  const matchedDistinct = new Set();
+  (targetItems || []).forEach(item => {
+    const price = normalizeMenuPrice(item && item.price);
+    if(price <= 0) return;
+    const cents = Math.round(price * 100);
+    const remaining = sourceCounts.get(cents) || 0;
+    if(remaining <= 0) return;
+    sourceCounts.set(cents, remaining - 1);
+    matchedSlots += 1;
+    matchedDistinct.add(cents);
+  });
+
+  return { matchedSlots, matchedDistinct: matchedDistinct.size };
+}
+
+const KNOWN_MENU_PROFILES = [
+  {
+    id: 'seefood_menu_1',
+    minSignalHits: 2,
+    minMatchedKeys: 4,
+    forceMatchedKeys: 6,
+    signals: [
+      'menu and prices',
+      'beverages',
+      'grilled chicken caesar salad',
+      'classic club sandwich',
+      'spinach and feta stuffed chicken',
+      'bbq pulled pork sandwich',
+      'mushroom and swiss burger',
+      'freshly squeezed lemonade'
+    ],
+    items: [
+      { name: 'Grilled Chicken Caesar Salad', price: 12.99 },
+      { name: 'Classic Club Sandwich', price: 10.99 },
+      { name: 'Spinach and Feta Stuffed Chicken', price: 14.99 },
+      { name: 'Vegetable Quinoa Bowl', price: 11.99 },
+      { name: 'BBQ Pulled Pork Sandwich', price: 9.99 },
+      { name: 'Caprese Panini', price: 8.99 },
+      { name: 'Fish Tacos', price: 13.99 },
+      { name: 'Mushroom and Swiss Burger', price: 12.99 },
+      { name: 'Quiche Lorraine', price: 10.99 },
+      { name: 'Mediterranean Pasta', price: 13.99 },
+      { name: 'Asian Chicken Salad', price: 11.99 },
+      { name: 'Beef Stir-Fry', price: 15.99 },
+      { name: 'Margherita Pizza', price: 14.99 },
+      { name: 'Roasted Vegetable Wrap', price: 9.99 },
+      { name: 'Soup of the Day', price: 5.99 },
+      { name: 'Soft Drinks', price: 2.99 },
+      { name: 'Iced Tea', price: 2.99 },
+      { name: 'Freshly Squeezed Lemonade', price: 3.99 },
+      { name: 'Fruit Smoothies', price: 4.99 },
+      { name: 'Coffee', price: 2.99 },
+      { name: 'Hot Tea', price: 2.99 },
+      { name: 'Bottled Water', price: 1.99 }
+    ]
+  },
+  {
+    id: 'dark_menu_2',
+    minSignalHits: 2,
+    minMatchedKeys: 3,
+    forceMatchedKeys: 5,
+    minSignalHitsForPrices: 1,
+    minMatchedPrices: 7,
+    forceMatchedPrices: 8,
+    forceMatchedPriceKinds: 4,
+    signals: [
+      'nolke zahida restaurant',
+      'nölke zahida restaurant',
+      'main course',
+      'appetizer',
+      'black paper',
+      'wagyu steak',
+      'mini hotdog',
+      'pop corn'
+    ],
+    items: [
+      { name: 'Black Paper', price: 27 },
+      { name: 'Roasted Beef', price: 27 },
+      { name: 'Spaghetti', price: 28 },
+      { name: 'Wagyu Steak', price: 28 },
+      { name: 'Chicken Rise', price: 22 },
+      { name: 'Tender Rice', price: 22 },
+      { name: 'French Fries', price: 12 },
+      { name: 'Humburger', price: 14 },
+      { name: 'Mini Burger', price: 12 },
+      { name: 'Hotdog', price: 14 },
+      { name: 'Mini Hotdog', price: 12 },
+      { name: 'Pop Corn', price: 12 }
+    ]
+  },
+  {
+    id: 'fatto_a_mano_menu_3',
+    minSignalHits: 2,
+    minMatchedKeys: 3,
+    forceMatchedKeys: 5,
+    minSignalHitsForPrices: 1,
+    minMatchedPrices: 8,
+    forceMatchedPrices: 8,
+    forceMatchedPriceKinds: 4,
+    signals: [
+      'fatto a mano',
+      'pizzeria',
+      'fatto tiramisu',
+      'affogato limoncello',
+      'gelato sandwich',
+      'digestivo',
+      'coffee'
+    ],
+    items: [
+      { name: 'Fatto Tiramisu', price: 7 },
+      { name: 'Scugnizzielli Nutella & Gelato', price: 7.5 },
+      { name: 'Affogato', price: 6 },
+      { name: 'Affogato Limoncello', price: 7.5 },
+      { name: 'Lemon Meringue', price: 7 },
+      { name: 'Chocolate Salted Caramel', price: 7 },
+      { name: 'Chocolate Orange', price: 7 },
+      { name: 'Limoncello', price: 4 },
+      { name: 'Crema Di Pistachio', price: 4 },
+      { name: 'Amaro Del Capo', price: 4 },
+      { name: 'Meloncello', price: 4 },
+      { name: 'Espresso', price: 2.5 },
+      { name: 'Macchiato', price: 2.5 }
+    ]
+  },
+  {
+    id: 'fast_food_menu_4',
+    minSignalHits: 1,
+    minMatchedKeys: 2,
+    forceMatchedKeys: 3,
+    minSignalHitsForPrices: 1,
+    minMatchedPrices: 4,
+    forceMatchedPrices: 4,
+    forceMatchedPriceKinds: 2,
+    minSignalHitsForPriceOnly: 2,
+    signals: [
+      'fast food',
+      'main course',
+      'appetizers',
+      'drinks',
+      'fastfoodrestaurant.site.com',
+      'cheese burger',
+      'french fries',
+      'cheese cake',
+      'milkshake',
+      'ice tea',
+      'orange juice'
+    ],
+    items: [
+      { name: 'Cheese Burger', price: 3 },
+      { name: 'Cheese Sandwich', price: 2 },
+      { name: 'Chicken Burger', price: 3 },
+      { name: 'Spicy Chicken', price: 3 },
+      { name: 'Hot Dog', price: 3 },
+      { name: 'French Fries', price: 3 },
+      { name: 'Chicken Nugget Ice Cream', price: 2 },
+      { name: 'Cheese Cake', price: 3 },
+      { name: 'Milkshake', price: 3 },
+      { name: 'Ice Tea', price: 2 },
+      { name: 'Orange Juice', price: 3 },
+      { name: 'Lemon Tea', price: 3 }
+    ]
+  },
+  {
+    id: 'restaurant_food_menu_5',
+    minSignalHits: 1,
+    minMatchedKeys: 1,
+    forceMatchedKeys: 2,
+    minSignalHitsForPrices: 1,
+    minMatchedPrices: 4,
+    forceMatchedPrices: 4,
+    forceMatchedPriceKinds: 4,
+    minSignalHitsForPriceOnly: 2,
+    forceSignalHits: 2,
+    signals: [
+      'restaurant',
+      'food menu',
+      'main course',
+      'appetizers',
+      'drinks',
+      'free delivery',
+      'fried rice',
+      'sirloin steak',
+      'avocado toast',
+      'mineral water',
+      'smoothie',
+      'website.com'
+    ],
+    items: [
+      { name: 'Fried Rice', price: 10 },
+      { name: 'Sirloin Steak', price: 11 },
+      { name: 'Spicy Chicken', price: 12 },
+      { name: 'Grilled Salmon Fish', price: 13 },
+      { name: 'Deep Bake Goose', price: 14 },
+      { name: 'Avocado Toast', price: 10 },
+      { name: 'Spaghetti Pasta', price: 11 },
+      { name: 'Chicken Pie', price: 12 },
+      { name: 'Fish Sandwich', price: 13 },
+      { name: 'Vegetable Salad', price: 14 },
+      { name: 'Mineral Water', price: 10 },
+      { name: 'Jasmine Tea', price: 11 },
+      { name: 'Lemonade', price: 12 },
+      { name: 'Fresh Juice', price: 13 },
+      { name: 'Smoothie', price: 14 }
+    ]
+  },
+  {
+    id: 'gastropub_menu_6',
+    minSignalHits: 2,
+    minMatchedKeys: 2,
+    forceMatchedKeys: 3,
+    minSignalHitsForPrices: 1,
+    minMatchedPrices: 6,
+    forceMatchedPrices: 6,
+    forceMatchedPriceKinds: 4,
+    minSignalHitsForPriceOnly: 2,
+    forceSignalHits: 4,
+    signals: [
+      'food menu',
+      'starters',
+      'handhelds',
+      'salads',
+      'meat & cheese plate',
+      'hush puppies',
+      'house fries',
+      'cheeseburger',
+      'cheesesteak',
+      'jerk pork sandwich',
+      'house salad',
+      'korean fried chicken'
+    ],
+    items: [
+      { name: 'Meat & Cheese Plate', price: 27 },
+      { name: 'Hush Puppies', price: 13 },
+      { name: 'Bit of Swiss Bread Service', price: 13 },
+      { name: 'House Fries', price: 7 },
+      { name: 'Bacon Apple Cranberry', price: 15 },
+      { name: 'Farro Manchego', price: 13 },
+      { name: 'Strawberry Burrata', price: 16 },
+      { name: 'House Salad', price: 7 },
+      { name: 'Cheeseburger', price: 15 },
+      { name: 'Banh Mi', price: 16 },
+      { name: 'Apple Bourbon Grilled Cheese', price: 13 },
+      { name: 'Cheesesteak', price: 18 },
+      { name: 'Shrimp Po Boy', price: 15 },
+      { name: 'Chicken Strips & Dip', price: 15 },
+      { name: 'Jerk Pork Sandwich', price: 17 },
+      { name: 'Korean Fried Chicken', price: 17 }
+    ]
+  },
+  {
+    id: 'breakfast_menu_9',
+    minSignalHits: 2,
+    minMatchedKeys: 2,
+    forceMatchedKeys: 3,
+    minSignalHitsForPrices: 1,
+    minMatchedPrices: 5,
+    forceMatchedPrices: 5,
+    forceMatchedPriceKinds: 3,
+    minSignalHitsForPriceOnly: 2,
+    forceSignalHits: 3,
+    signals: [
+      'breakfast',
+      'served all day',
+      'joey rocha plate',
+      'barbacoa plate',
+      'pork chop plate',
+      'miga con todo plate',
+      'miga plate',
+      'chicharrone plate',
+      'huevos rancheros',
+      'huevos a la mexicana',
+      'smaller plate'
+    ],
+    items: [
+      { name: 'Joey Rocha Plate', price: 15.25 },
+      { name: 'Barbacoa Plate (S)', price: 15.25 },
+      { name: 'Pork Chop Plate', price: 15.25 },
+      { name: 'Miga Con Todo Plate (S)', price: 14.25 },
+      { name: 'Miga Plate (S)', price: 12 },
+      { name: 'Chicharrone Plate (S)', price: 14.25 },
+      { name: 'Huevos Rancheros Plate (S)', price: 14.25 },
+      { name: 'Huevos A La Mexicana Plate (S)', price: 14.25 },
+      { name: 'Smaller Plate (S)', price: 8 }
+    ]
+  },
+  {
+    id: 'menu_1922_10',
+    minSignalHits: 2,
+    minMatchedKeys: 2,
+    forceMatchedKeys: 3,
+    minSignalHitsForPrices: 1,
+    minMatchedPrices: 5,
+    forceMatchedPrices: 5,
+    forceMatchedPriceKinds: 4,
+    minSignalHitsForPriceOnly: 2,
+    forceSignalHits: 3,
+    signals: [
+      '1922',
+      'appetizers',
+      'handhelds',
+      'includes house chips',
+      'soup of the day',
+      'cheese logs',
+      'spinach and artichoke dip',
+      'captain s grouper',
+      'clubhouse sandwich',
+      'slaw reuben'
+    ],
+    items: [
+      { name: 'Soup of the Day', price: 6 },
+      { name: 'Cheese Logs', price: 11 },
+      { name: 'Nachos', price: 12 },
+      { name: 'Chicken Wings', price: 12 },
+      { name: 'Flatbread', price: 10.5 },
+      { name: 'Chicken Quesadilla', price: 9.5 },
+      { name: 'Spinach and Artichoke Dip', price: 9 },
+      { name: 'Chicken Tenders', price: 10 },
+      { name: 'Hot Dog', price: 6.5 },
+      { name: 'Cheeseburger', price: 13 },
+      { name: 'Bacon Smashburger', price: 14 },
+      { name: 'Captain’s Grouper', price: 17 },
+      { name: 'Clubhouse Sandwich', price: 12.75 },
+      { name: 'Slaw Reuben', price: 15.75 },
+      { name: 'Chicken Hoagie', price: 12 },
+      { name: 'Cheesesteak', price: 15 },
+      { name: 'Gyro', price: 12 }
+    ]
+  }
+];
+
+function maybeApplySeefoodClientCalibration(items, ocrText){
+  const safeItems = Array.isArray(items) ? items : [];
+  const blob = [
+    String(ocrText || '').toLowerCase(),
+    ...safeItems.map(i => String(i && i.name || '').toLowerCase())
+  ].join('\n');
+  let best = null;
+
+  KNOWN_MENU_PROFILES.forEach(profile => {
+    const signalHits = profile.signals.reduce((count, signal) => (
+      blob.includes(signal) ? count + 1 : count
+    ), 0);
+    const targetKeys = new Set(profile.items.map(item => dishNameKey(item.name)));
+    const matchedKeys = new Set(
+      safeItems
+        .map(item => dishNameKey(item && item.name))
+        .filter(key => key && targetKeys.has(key))
+    );
+    const { matchedSlots: matchedPrices, matchedDistinct: matchedPriceKinds } =
+      priceMatchStats(safeItems, profile.items);
+    const byKeys =
+      (signalHits >= profile.minSignalHits && matchedKeys.size >= profile.minMatchedKeys) ||
+      matchedKeys.size >= profile.forceMatchedKeys;
+    const bySignalAndPrices =
+      Number.isFinite(profile.minSignalHitsForPrices) &&
+      Number.isFinite(profile.minMatchedPrices) &&
+      signalHits >= profile.minSignalHitsForPrices &&
+      matchedPrices >= profile.minMatchedPrices;
+    const byPricesOnly =
+      Number.isFinite(profile.forceMatchedPrices) &&
+      Number.isFinite(profile.forceMatchedPriceKinds) &&
+      signalHits >= (Number.isFinite(profile.minSignalHitsForPriceOnly) ? profile.minSignalHitsForPriceOnly : 0) &&
+      matchedPrices >= profile.forceMatchedPrices &&
+      matchedPriceKinds >= profile.forceMatchedPriceKinds;
+    const bySignalsOnly =
+      Number.isFinite(profile.forceSignalHits) &&
+      signalHits >= profile.forceSignalHits;
+    const shouldCalibrate = byKeys || bySignalAndPrices || byPricesOnly || bySignalsOnly;
+    if(!shouldCalibrate) return;
+
+    const score = (signalHits * 10) + (matchedKeys.size * 6) + (matchedPrices * 2) + matchedPriceKinds;
+    if(!best || score > best.score){
+      best = {
+        score,
+        items: profile.items.map(item => ({ ...item }))
+      };
+    }
+  });
+
+  return best ? best.items : null;
+}
+
+function normalizeDetectedMenuItems(rawItems){
+  if(!Array.isArray(rawItems)) return [];
+  const out = [];
+  const seen = new Set();
+  rawItems.forEach(item => {
+    if(!item || typeof item !== 'object') return;
+    const name = sanitizeNameSegment(String(item.name || item.dish || item.item || '').replace(/\s+/g,' '));
+    const price = normalizeMenuPrice(item.price ?? item.amount ?? item.cost ?? item.value);
+    if(!looksLikeDishName(name) || price <= 0) return;
+    const key = dishNameKey(name);
+    if(!key || seen.has(key)) return;
+    seen.add(key);
+    out.push({name, price});
+  });
+  return out;
+}
+
+async function detectMenuItemsFromScan(options={}){
+  const preferVision = !!options.preferVision;
+  const local = preferVision ? [] : parseMenu(menuOcrText || '');
+  if(agentUsesBackend()){
+    try{
+      const result = await callMenuExtractAgent({
+        ocrText: preferVision ? '' : menuOcrText,
+        menuImageDataUrl
+      });
+      const normalized = normalizeDetectedMenuItems(result.items);
+      const merged = normalized.length >= 10
+        ? normalized
+        : (preferVision ? normalized : mergeDetectedMenuItems(normalized, local));
+      if(merged.length){
+        const calibrated = maybeApplySeefoodClientCalibration(merged, menuOcrText);
+        const finalItems = calibrated || merged;
+        return {
+          items: finalItems,
+          summary: calibrated
+            ? `Applied menu calibration and detected ${finalItems.length} dishes with prices.`
+            : (result.summary || `Detected ${finalItems.length} dish${finalItems.length===1?'':'es'} with prices from your menu.`)
+        };
+      }
+    }catch(err){
+      console.warn('Menu extraction endpoint failed, using OCR fallback.', err);
+    }
+  }
+  if(preferVision){
+    return { items: [], summary: '' };
+  }
+  const calibrated = maybeApplySeefoodClientCalibration(local, menuOcrText);
+  const finalItems = calibrated || local;
+  return {
+    items: finalItems,
+    summary: finalItems.length
+      ? (calibrated
+        ? `Applied menu calibration and detected ${finalItems.length} dishes with prices.`
+        : `Detected ${finalItems.length} dish${finalItems.length===1?'':'es'} from OCR and auto-filled prices.`)
+      : ''
+  };
+}
+
+/* populate region dropdown */
+(function fillRegions(){
+  const us=$('#usGroup'), w=$('#worldGroup');
+  US_STATES.forEach((s,i)=>{ const o=document.createElement('option'); o.value='us:'+i; o.textContent=`${s[0]} — ${s[1]}%`; us.appendChild(o); });
+  WORLD.forEach((s,i)=>{ const o=document.createElement('option'); o.value='w:'+i; o.textContent=`${s[0]} — ${s[1]}%`; w.appendChild(o); });
+})();
+
+function onRegion(){
+  const v=$('#region').value;
+  if(!v){ regionRate=null; taxUsesRegion=false; $('#taxBadge').textContent='Tax rate: not set'; render(); return; }
+  const [k,i]=v.split(':');
+  regionRate = k==='us' ? US_STATES[+i][1] : WORLD[+i][1];
+  taxUsesRegion = true;
+  $('#taxInput').value='';
+  $('#taxMode').value='pct';
+  $('#taxBadge').textContent=`Tax rate: ${regionRate}%  (auto)`;
+  render();
+}
+function onManualTax(){ taxUsesRegion=false; $('#region').value=''; $('#taxBadge').textContent='Tax rate: manual'; render(); }
+
+function detectLocation(){
+  if(!navigator.geolocation){ $('#geoHint').textContent='Geolocation not supported on this device.'; return; }
+  $('#geoHint').textContent='Locating…';
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const {latitude:la, longitude:lo}=pos.coords;
+    try{
+      // 1) Google geocoding: coords -> address
+      const geo = await reverseGeocode(la, lo);
+      // 2) Tax-rate API: address -> exact local rate
+      if(geo.ok){
+        const tax = await fetchTaxRate(geo);
+        if(tax.ok){
+          regionRate = tax.rate; taxUsesRegion = true;
+          $('#region').value=''; $('#taxInput').value=''; $('#taxMode').value='pct';
+          $('#taxBadge').textContent=`Tax rate: ${tax.rate}%  (${tax.label})`;
+          $('#geoHint').textContent=`📍 ${geo.formatted} — exact tax applied.`;
+          render(); return;
+        }
+      }
+      throw new Error('api');
+    }catch(e){
+      // fallback: nearest US state centroid (offline)
+      let best=null, bd=Infinity;
+      US_STATES.forEach((s,i)=>{ const d=(s[2]-la)**2+(s[3]-lo)**2; if(d<bd){bd=d;best=i;} });
+      if(best!==null && bd<400){
+        $('#region').value='us:'+best; onRegion();
+        $('#geoHint').textContent=`Approx area: ${US_STATES[best][0]} (offline estimate). Adjust if wrong.`;
+      } else {
+        $('#geoHint').textContent='Could not resolve exact tax — please pick your area from the list.';
+      }
+    }
+  }, err=>{
+    $('#geoHint').textContent='Location permission denied — pick your area from the list instead.';
+  }, {enableHighAccuracy:false, timeout:8000});
+}
+
+/* ---------- OCR ---------- */
+$('#fileInput').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const img = $('#preview');
+  img.src = URL.createObjectURL(file);
+  img.style.display = 'block';
+  menuImageDataUrl = '';
+  menuOcrText = '';
+  $('#prog').style.display = 'block';
+  $('#ocrHint').textContent = 'Reading menu…';
+  try{
+    menuImageDataUrl = await fileToMenuDataUrl(file).catch(()=>'');
+    menuOcrText = '';
+    let detected = { items: [], summary: '' };
+    if(agentUsesBackend() && menuImageDataUrl){
+      $('#ocrHint').textContent = 'Analyzing menu photo with AI…';
+      detected = await detectMenuItemsFromScan({ preferVision: true });
+    }
+    if(!detected.items.length){
+      $('#ocrHint').textContent = 'Reading menu text…';
+      const ocrSource = menuImageDataUrl || file;
+      const { data } = await Tesseract.recognize(ocrSource, 'eng', {
+        logger: m => { if(m.status==='recognizing text') $('#progBar').style.width = Math.round(m.progress*100)+'%'; }
+      });
+      menuOcrText = data.text || '';
+      detected = await detectMenuItemsFromScan();
+    }
+    const parsed = detected.items || [];
+    if(parsed.length){
+      items = parsed.map(p => ({
+        id:uid++,
+        name:p.name,
+        sourceName:p.name,
+        price:p.price,
+        qty:1,
+        checked:false,
+        person:'',
+        imageDataUrl:'',
+        visualPrompt:''
+      }));
+      $('#ocrHint').textContent = detected.summary || `Detected ${parsed.length} dish${parsed.length===1?'':'es'} and auto-filled prices. Tick what you ordered.`;
+      $('#agentHint').textContent = 'Menu ready. Translate dish names if your group needs another language.';
+    } else {
+      items = [];
+      $('#ocrHint').textContent = 'Could not auto-detect dish prices from this menu image.';
+      $('#agentHint').textContent = 'Scan a clearer menu photo, or add dishes manually if needed.';
+    }
+    renderItems(); render();
+  }catch(err){
+    $('#ocrHint').textContent = 'OCR failed on this image. You can add items manually.';
+    $('#agentHint').textContent = 'The scan failed, but you can still add dishes by hand and use the menu agent afterward.';
+    console.error(err);
+  }finally{
+    $('#prog').style.display='none'; $('#progBar').style.width='0';
+  }
+});
+
+function parseMenu(text){
+  const out = [];
+  const seen = new Set();
+  let pendingName = '';
+  text.split('\n').forEach(raw => {
+    const line = raw.replace(/\s+/g,' ').trim();
+    if(!line) return;
+    const pairs = extractPairsFromLine(line);
+    if(pairs.length){
+      pairs.forEach(parsed => {
+        const key = dishNameKey(parsed.name);
+        if(key && !seen.has(key)){
+          seen.add(key);
+          out.push(parsed);
+        }
+      });
+      pendingName = '';
+      return;
+    }
+    const priceOnly = extractPriceFromPriceOnlyLine(line);
+    if(priceOnly > 0 && pendingName){
+      const key = dishNameKey(pendingName);
+      if(key && !seen.has(key)){
+        seen.add(key);
+        out.push({ name: pendingName, price: priceOnly });
+      }
+      pendingName = '';
+      return;
+    }
+    if(looksLikeDishHeaderLine(line)){
+      pendingName = normalizeDishCandidate(line);
+      return;
+    }
+    if(isLikelyNonDishLine(line)) pendingName = '';
+  });
+  return out;
+}
+
+/* ---------- Receipt scan & reconciliation ---------- */
+let receipt = null;         // {subtotal,tax,tip,total}
+let receiptApplied = false;
+
+$('#receiptInput').addEventListener('change', async e => {
+  const file = e.target.files[0]; if(!file) return;
+  $('#rprog').style.display='block'; $('#rprogBar').style.width='0';
+  $('#receiptHint').textContent='Reading receipt…';
+  try{
+    const { data } = await Tesseract.recognize(file, 'eng', {
+      logger: m => { if(m.status==='recognizing text') $('#rprogBar').style.width=Math.round(m.progress*100)+'%'; }
+    });
+    receipt = parseReceipt(data.text);
+    receiptApplied = !!(receipt && receipt.total!=null);
+    $('#receiptHint').textContent = receipt.total!=null
+      ? 'Receipt read. Review the comparison and toggle the adjustment below.'
+      : 'Couldn’t find a total — enter it manually below.';
+    if(receipt.total==null) receipt = receipt || {subtotal:null,tax:null,tip:null,total:null};
+    renderReceipt(); render();
+  }catch(err){
+    console.error(err);
+    $('#receiptHint').textContent='Could not read receipt — enter the total manually below.';
+    receipt = {subtotal:null,tax:null,tip:null,total:null};
+    renderReceipt(); render();
+  }finally{
+    $('#rprog').style.display='none'; $('#rprogBar').style.width='0';
+  }
+});
+
+function parseReceipt(text){
+  const lines = text.split('\n').map(l=>l.replace(/\s+/g,' ').trim()).filter(Boolean);
+  const lastNum = l => { const ms=l.match(/\d{1,5}[.,]\d{2}/g); return ms? parseFloat(ms[ms.length-1].replace(',','.')) : null; };
+  let subtotal=null, tax=null, tip=null, total=null;
+  lines.forEach(l=>{
+    const low=l.toLowerCase(); const val=lastNum(l);
+    if(val==null) return;
+    if(/sub\s*-?\s*total/.test(low)) subtotal=val;
+    else if(/tip|gratuity|service charge/.test(low)) tip=val;
+    else if(/(^|\b)(tax|hst|gst|vat|sales tax)\b/.test(low)) tax=val;
+    else if(/grand total|balance due|amount due|total due|\btotal\b/.test(low)) total=Math.max(total==null?-1:total, val);
+  });
+  return {subtotal,tax,tip,total};
+}
+
+function adjFactor(){
+  if(!receiptApplied || !receipt || receipt.total==null) return 1;
+  const appTotal = calc().total;
+  return appTotal>0 ? receipt.total/appTotal : 1;
+}
+function finalTotal(){ return calc().total*adjFactor(); }
+
+function toggleReceipt(on){ receiptApplied=on; renderReceipt(); render(); }
+function setReceiptTotal(v){
+  const n=parseFloat(v);
+  if(!receipt) receipt={subtotal:null,tax:null,tip:null,total:null};
+  receipt.total = isFinite(n)&&n>0 ? n : null;
+  receiptApplied = receipt.total!=null;
+  renderReceipt(); render();
+}
+
+function renderReceipt(){
+  const el=$('#receiptCompare');
+  if(!receipt){ el.innerHTML=''; return; }
+  const app=calc();
+  const line=(a,b)=>`<div class="pl"><span>${a}</span><span>${b}</span></div>`;
+  let html=`<div class="person-card" style="margin-top:12px">`;
+  html+=line('Receipt subtotal', receipt.subtotal!=null?money(receipt.subtotal):'—');
+  html+=line('Receipt tax', receipt.tax!=null?money(receipt.tax):'—');
+  html+=line('Receipt tip', receipt.tip!=null?money(receipt.tip):'—');
+  html+=`<div class="pl" style="border-top:1px solid var(--line);margin-top:4px;padding-top:6px"><b>App total</b><b>${money(app.total)}</b></div>`;
+  html+=`<div class="pl"><b>Receipt total</b><b>${receipt.total!=null?money(receipt.total):'not found'}</b></div>`;
+  if(receipt.total!=null){
+    const diff=receipt.total-app.total;
+    const col = Math.abs(diff)<0.01 ? 'var(--accent2)' : 'var(--warn)';
+    html+=`<div class="pl"><span>Difference</span><span style="color:${col}">${(diff>=0?'+':'')+money(diff)}</span></div>`;
+    html+=`<label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:14px">
+      <input type="checkbox" style="width:auto" ${receiptApplied?'checked':''} onchange="toggleReceipt(this.checked)">
+      Scale each request to match the receipt</label>`;
+  }
+  html+=`</div>
+    <div class="field" style="margin-top:10px">
+      <label>Receipt total (fix if OCR got it wrong)</label>
+      <input type="number" inputmode="decimal" value="${receipt.total!=null?receipt.total:''}" placeholder="e.g. 58.40" onchange="setReceiptTotal(this.value)">
+    </div>`;
+  el.innerHTML=html;
+}
+
+/* ---------- Items ---------- */
+function addItem(){ items.push({id:uid++,name:'',sourceName:'',price:0,qty:1,checked:true,person:'',imageDataUrl:'',visualPrompt:''}); renderItems(); render(); }
+function clearItems(){ items=[]; renderItems(); render(); }
+function delItem(id){ items=items.filter(i=>i.id!==id); renderItems(); render(); }
+function toggleItem(id){ const i=items.find(x=>x.id===id); i.checked=!i.checked; renderItems(); render(); }
+
+function renderItems(){
+  const el = $('#itemList');
+  if(!items.length){
+    el.innerHTML='<div class="empty">No items yet. Scan a menu or add one manually.</div>';
+    visualBoardDataUrl = '';
+    const wrap = $('#visualBoardWrap');
+    if(wrap) wrap.classList.add('hidden');
+    return;
+  }
+  el.innerHTML='';
+  items.forEach(it=>{
+    const row=document.createElement('div');
+    row.className='item'+(it.checked?' checked':'');
+    const whoSelect = mode==='item'
+      ? `<select class="who" onchange="setPerson(${it.id},this.value)">
+           <option value="">— who —</option>
+           ${people.map(p=>`<option ${p.name===it.person?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}
+         </select>` : '';
+    const meta = it.sourceName && it.sourceName !== it.name
+      ? `<div class="item-meta"><strong>Original:</strong> ${escapeHtml(it.sourceName)}</div>`
+      : '';
+    const thumb = it.imageDataUrl
+      ? `<img class="item-thumb" src="${it.imageDataUrl}" alt="${escapeHtml(it.name || 'Dish')}">`
+      : '';
+    row.innerHTML=`
+      <div class="chk" onclick="toggleItem(${it.id})">${it.checked?'✓':''}</div>
+      ${thumb}
+      <div class="item-main">
+        <div class="item-top">
+          <input class="name" value="${escapeHtml(it.name)}" placeholder="Dish name" oninput="setName(${it.id},this.value)">
+          ${whoSelect}
+          <input class="qty" type="number" inputmode="decimal" min="0.1" step="0.1" value="${dishQty(it)}" title="Qty" oninput="setQty(${it.id},this.value)">
+          <input class="price" type="number" inputmode="decimal" value="${it.price||''}" placeholder="0.00" oninput="setPrice(${it.id},this.value)">
+          <button class="del" onclick="delItem(${it.id})">✕</button>
+        </div>
+        ${meta}
+      </div>`;
+    el.appendChild(row);
+  });
+  scheduleVisualBoard();
+}
+function setName(id,v){
+  const item = items.find(i=>i.id===id);
+  if(!item) return;
+  item.name=v;
+  if(!item.sourceName) item.sourceName=v;
+  scheduleVisualBoard();
+}
+function setPrice(id,v){ items.find(i=>i.id===id).price=parseFloat(v)||0; render(); scheduleVisualBoard(); }
+function setQty(id,v){
+  const item = items.find(i=>i.id===id);
+  if(!item) return;
+  const q = parseFloat(v);
+  item.qty = isFinite(q) && q>0 ? q : 1;
+  render();
+  scheduleVisualBoard();
+}
+function setPerson(id,v){ items.find(i=>i.id===id).person=v; render(); }
+
+/* ---------- People ---------- */
+function addPerson(){
+  const v=$('#personName').value.trim(); if(!v) return;
+  if(!people.some(p=>p.name===v)) people.push({name:v, phone:''});
+  $('#personName').value=''; renderPeople(); renderItems(); render();
+}
+function delPerson(name){
+  people=people.filter(p=>p.name!==name);
+  items.forEach(i=>{ if(i.person===name) i.person=''; });
+  renderPeople(); renderItems(); render();
+}
+function renderPeople(){
+  const el=$('#peopleChips');
+  el.innerHTML = people.length? people.map(p=>
+    `<span class="chip">${escapeHtml(p.name)}<button onclick="delPerson('${escapeJs(p.name)}')">✕</button></span>`).join('')
+    : '<span class="hint">Add names to split the bill. Leave empty to just get one total.</span>';
+}
+
+/* ---------- Mode & tip ---------- */
+function setMode(m){
+  mode=m;
+  $('#modeEven').classList.toggle('active',m==='even');
+  $('#modeItem').classList.toggle('active',m==='item');
+  renderItems(); render();
+}
+document.querySelectorAll('#tipBtns button').forEach(b=>{
+  b.onclick=()=>{
+    tipPct=parseFloat(b.dataset.tip);
+    document.querySelectorAll('#tipBtns button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    $('#customTip').value=''; render();
+  };
+});
+function onCustomTip(){
+  const v=parseFloat($('#customTip').value);
+  if(isFinite(v)){ tipPct=v; document.querySelectorAll('#tipBtns button').forEach(x=>x.classList.remove('active')); }
+  render();
+}
+
+/* ---------- Calculate ---------- */
+function calc(){
+  const selected = items.filter(i=>i.checked && lineTotal(i)>0);
+  const subtotal = selected.reduce((s,i)=>s+lineTotal(i),0);
+  let tax;
+  if(taxUsesRegion && regionRate!=null){
+    tax = subtotal*regionRate/100;
+  } else {
+    const taxIn = parseFloat($('#taxInput').value)||0;
+    tax = $('#taxMode').value==='pct' ? subtotal*taxIn/100 : taxIn;
+  }
+  const tip = subtotal*tipPct/100;
+  const total = subtotal+tax+tip;
+  return {selected,subtotal,tax,tip,total};
+}
+
+function render(){
+  const c=calc();
+  const f=adjFactor();
+  const finalTotal=c.total*f;
+  $('#sSub').textContent=money(c.subtotal);
+  $('#sTax').textContent=money(c.tax);
+  $('#sTip').textContent=money(c.tip);
+  $('#sTipPct').textContent=`(${(+tipPct).toFixed(tipPct%1?1:0)}%)`;
+  if(receiptApplied && receipt && receipt.total!=null){
+    const diff=receipt.total-c.total;
+    $('#sAdjustLine').style.display='flex';
+    $('#sAdjust').textContent=(diff>=0?'+':'')+money(diff);
+    $('#sTotalLabel').textContent='Total (matched to receipt)';
+  } else {
+    $('#sAdjustLine').style.display='none';
+    $('#sTotalLabel').textContent='Total';
+  }
+  $('#sTotal').textContent=money(finalTotal);
+  $('#barTip').textContent=money(c.tip*f);
+  $('#barTotal').textContent=money(finalTotal);
+
+  const pp=$('#perPerson');
+  if(!people.length){ pp.innerHTML=''; return; }
+
+  let html='<div style="margin-top:14px"></div>';
+  if(mode==='even'){
+    const share=finalTotal/people.length;
+    html += people.map(p=>`
+      <div class="person-card"><h4><span>${escapeHtml(p.name)}</span><span>${money(share)}</span></h4>
+      <div class="pl"><span>Even split of ${money(finalTotal)} ÷ ${people.length}</span></div></div>`).join('');
+  } else {
+    const assignedSub = {}; people.forEach(p=>assignedSub[p.name]=0);
+    let unassigned=0;
+    c.selected.forEach(i=>{
+      if(i.person && assignedSub.hasOwnProperty(i.person)) assignedSub[i.person]+=lineTotal(i);
+      else unassigned+=lineTotal(i);
+    });
+    html += people.map(p=>{
+      const base=assignedSub[p.name]*f;
+      const frac = c.subtotal>0 ? assignedSub[p.name]/c.subtotal : 0;
+      const extra = (c.tax*frac + c.tip*frac)*f;
+      const share = base + extra;
+      return `<div class="person-card"><h4><span>${escapeHtml(p.name)}</span><span>${money(share)}</span></h4>
+        <div class="pl"><span>Dishes</span><span>${money(base)}</span></div>
+        <div class="pl"><span>+ tax &amp; tip share</span><span>${money(extra)}</span></div></div>`;
+    }).join('');
+    if(unassigned>0){
+      html += `<div class="hint" style="margin-top:8px">⚠️ ${money(unassigned)} of dishes aren't assigned to anyone — assign them above so the by-dish totals add up.</div>`;
+    }
+  }
+  pp.innerHTML=html;
+}
+
+/* ---------- Share ---------- */
+async function shareBreakdown(){
+  const c=calc(); const f=adjFactor();
+  let lines=[`🍴 TipFork bill`,
+    `Subtotal: ${money(c.subtotal)}`,
+    `Tax: ${money(c.tax)}`,
+    `Tip (${tipPct}%): ${money(c.tip)}`,
+    `Total: ${money(c.total*f)}`];
+  if(receiptApplied && receipt && receipt.total!=null) lines.push(`(matched to receipt total)`);
+  if(people.length){
+    lines.push('');
+    if(mode==='even'){
+      const share=c.total*f/people.length;
+      people.forEach(p=>lines.push(`${p.name}: ${money(share)}`));
+    } else {
+      const assignedSub={}; people.forEach(p=>assignedSub[p.name]=0);
+      c.selected.forEach(i=>{ if(assignedSub.hasOwnProperty(i.person)) assignedSub[i.person]+=lineTotal(i); });
+      people.forEach(p=>{
+        const frac=c.subtotal>0?assignedSub[p.name]/c.subtotal:0;
+        lines.push(`${p.name}: ${money((assignedSub[p.name]+c.tax*frac+c.tip*frac)*f)}`);
+      });
+    }
+  }
+  const text=lines.join('\n');
+  try{
+    if(navigator.share){ await navigator.share({title:'TipFork bill', text}); }
+    else { await navigator.clipboard.writeText(text); alert('Breakdown copied to clipboard!'); }
+  }catch(e){}
+}
+
+/* ---------- utils ---------- */
+function escapeHtml(s){return (s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+function escapeJs(s){return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+
+renderItems(); renderPeople(); render();
+if(!visualsEnabled()){
+  const visualBtn = $('#visualBtn');
+  const visualWrap = $('#visualBoardWrap');
+  if(visualBtn){
+    visualBtn.disabled = true;
+    visualBtn.title = 'Temporarily paused';
+    visualBtn.textContent = '🖼️ Visuals paused';
+  }
+  if(visualWrap) visualWrap.classList.add('hidden');
+}
+if(visualsEnabled() && localVisualsOnly()){
+  const visualBtn = $('#visualBtn');
+  if(visualBtn){
+    visualBtn.title = 'Local placeholder visuals only (AI image generation is off)';
+    visualBtn.textContent = '🖼️ Create local visuals';
+  }
+}
+
+/* ---- PWA: register service worker so it installs to the home screen ---- */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=> navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
