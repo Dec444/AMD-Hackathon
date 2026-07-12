@@ -684,7 +684,7 @@ async function runMenuAgent(action){
       let result;
       if(agentUsesBackend()){
         try{
-          result = await callMenuTranslateAgent(payload, fastTranslationMode() ? 14000 : 22000);
+          result = await callMenuTranslateAgent(payload, fastTranslationMode() ? 60000 : 90000);
         }catch(err){
           const msg = String(err && err.message || '');
           if(/timed out/i.test(msg)){
@@ -694,7 +694,7 @@ async function runMenuAgent(action){
               menuImageDataUrl: '',
               useImageContext: false
             };
-            result = await callMenuTranslateAgent(retryPayload, 18000);
+            result = await callMenuTranslateAgent(retryPayload, 60000);
             if(result && (!result.summary || !result.summary.trim())){
               result.summary = 'Translated after retrying in lightweight mode.';
             }
@@ -861,10 +861,10 @@ async function callMenuAgent(path, payload, timeoutMs=25000){
 }
 
 async function callMenuExtractAgent(payload){
-  return callMenuAgent('/api/agent/menu/extract', payload, 32000);
+  return callMenuAgent('/api/agent/menu/extract', payload, 60000);
 }
 
-async function callMenuTranslateAgent(payload, timeoutMs=14000){
+async function callMenuTranslateAgent(payload, timeoutMs=60000){
   return callMenuAgent('/api/agent/menu/translate', payload, timeoutMs);
 }
 

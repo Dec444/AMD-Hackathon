@@ -96,18 +96,25 @@ async function callFireworksChat({ model, messages, maxTokens = 1000, temperatur
   if(!fireworksConfigured()){
     throw new Error('Fireworks API key missing. Set FIREWORKS_API_KEY in .env.');
   }
+  const resolvedModel = String(model || FIREWORKS_TEXT_MODEL);
+  const body = {
+    model: resolvedModel,
+    messages: Array.isArray(messages) ? messages : [],
+    temperature,
+    max_tokens: maxTokens
+  };
+  // Reasoning models (gpt-oss) "think" before answering; menu tasks don't
+  // need deep reasoning, so cap the effort to keep latency low.
+  if(/gpt-oss/i.test(resolvedModel)){
+    body.reasoning_effort = 'low';
+  }
   const response = await fetch(`${FIREWORKS_BASE_URL}/chat/completions`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${FIREWORKS_API_KEY}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      model: String(model || FIREWORKS_TEXT_MODEL),
-      messages: Array.isArray(messages) ? messages : [],
-      temperature,
-      max_tokens: maxTokens
-    })
+    body: JSON.stringify(body)
   });
 
   const json = await response.json().catch(() => ({}));
